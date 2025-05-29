@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor e Divisor de JSON</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 50px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .progress-container {
+            margin-top: 20px;
+        }
+        .file-list a {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4 text-center">Conversor e Divisor de Arquivos JSON</h1>
+
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="convert-tab" data-bs-toggle="tab" data-bs-target="#convert" type="button" role="tab" aria-controls="convert" aria-selected="true">Converter para JSON</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="split-tab" data-bs-toggle="tab" data-bs-target="#split" type="button" role="tab" aria-controls="split" aria-selected="false">Dividir JSON</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="myTabContent">
+            <!-- Tab de Conversão -->
+            <div class="tab-pane fade show active" id="convert" role="tabpanel" aria-labelledby="convert-tab">
+                <h2 class="mt-4">Converter Arquivo para JSON</h2>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="fileInput" class="form-label">Selecione um arquivo (CSV, XLSX, XML):</label>
+                        <input class="form-control" type="file" id="fileInput" name="file" accept=".csv,.xlsx,.xls,.xml">
+                    </div>
+                    <div id="convertFormControls" class="d-flex">
+                        <button type="submit" class="btn btn-primary">Converter</button>
+                        <button type="button" class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#convertApiModal">Gerar API</button>
+                    </div>
+                </form>
+                <div class="progress-container mt-3">
+                    <div class="progress d-none">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div id="uploadMessage" class="mt-2"></div>
+                    <div id="downloadLink" class="mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Tab de Divisão -->
+            <div class="tab-pane fade" id="split" role="tabpanel" aria-labelledby="split-tab">
+                <h2 class="mt-4">Dividir Arquivo JSON</h2>
+                <form id="splitForm">
+                    <div class="mb-3">
+                        <label for="jsonFileSelect" class="form-label">Selecione o arquivo JSON para dividir:</label>
+                        <select class="form-select" id="jsonFileSelect" name="filename">
+                            <!-- Opções serão carregadas via JavaScript -->
+                        </select>
+                        <div id="jsonPreviewLinkContainer" class="mt-2"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="partsInput" class="form-label">Número de partes para dividir:</label>
+                        <input type="number" class="form-control" id="partsInput" name="parts" min="1" value="1">
+                    </div>
+                    <div class="d-flex">
+                        <button type="submit" class="btn btn-primary">Dividir</button>
+                        <button type="button" class="btn btn-info ms-2" id="generateSplitApiButton">Gerar API</button>
+                    </div>
+                </form>
+                <div class="progress-container mt-3">
+                    <div class="progress d-none">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div id="splitMessage" class="mt-2"></div>
+                    <div id="splitDownloadLinks" class="mt-2 file-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal API Convert -->
+    <div class="modal fade" id="convertApiModal" tabindex="-1" aria-labelledby="convertApiModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="convertApiModalLabel">API para Converter Arquivo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Você pode usar os seguintes exemplos para interagir com a API de conversão:</p>
+                    <h6><code>curl</code></h6>
+                    <pre><code class="language-bash">curl -X POST -F "file=@/caminho/para/seu/arquivo.csv" http://127.0.0.1:5000/upload</code></pre>
+                    <h6>JavaScript (fetch)</h6>
+                    <pre><code class="language-javascript">
+const formData = new FormData();
+// Assumindo que 'fileInput' é o seu elemento input type="file"
+formData.append('file', fileInput.files[0]);
+
+fetch('http://127.0.0.1:5000/upload', {
+    method: 'POST',
+    body: formData
+})
+.then(response => response.json())
+.then(data => console.log(data))
+.catch(error => console.error('Erro:', error));
+                    </code></pre>
+                    <h6>API de Download (após conversão bem-sucedida)</h6>
+                    <p>O nome do arquivo convertido será retornado na resposta do upload (ex: <code>dados_convertidos.json</code>).</p>
+                    <pre><code class="language-bash">curl -o nome_local_do_arquivo.json http://127.0.0.1:5000/download/dados_convertidos.json</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal API Split -->
+    <div class="modal fade" id="splitApiModal" tabindex="-1" aria-labelledby="splitApiModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="splitApiModalLabel">API para Dividir Arquivo JSON</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Você pode usar os seguintes exemplos para interagir com a API de divisão:</p>
+                    <h6><code>curl</code></h6>
+                    <pre><code class="language-bash">curl -X POST -F "filename=nome_do_arquivo.json" -F "parts=3" http://127.0.0.1:5000/split</code></pre>
+                    <h6>JavaScript (fetch)</h6>
+                    <pre><code class="language-javascript">
+const formData = new FormData();
+formData.append('filename', 'nome_do_arquivo.json');
+formData.append('parts', 3); // Número de partes desejado
+
+fetch('http://127.0.0.1:5000/split', {
+    method: 'POST',
+    body: formData
+})
+.then(response => response.json())
+.then(data => console.log(data))
+.catch(error => console.error('Erro:', error));
+                    </code></pre>
+                    <h6>API de Download (após divisão bem-sucedida)</h6>
+                    <p>Os nomes dos arquivos divididos serão retornados na resposta do split (ex: <code>arquivo_part1.json</code>, <code>arquivo_part2.json</code>).</p>
+                    <pre><code class="language-bash">curl -o nome_local_parte1.json http://127.0.0.1:5000/download/arquivo_part1.json</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadForm = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('fileInput');
+            const uploadMessage = document.getElementById('uploadMessage');
+            const downloadLink = document.getElementById('downloadLink');
+            const convertProgressBar = document.querySelector('#convert .progress-bar');
+            const convertProgressContainer = document.querySelector('#convert .progress');
+            const convertProgressText = document.createElement('div'); // Para exibir o status da tarefa
+            convertProgressText.className = 'mt-1 small';
+            if (convertProgressContainer) convertProgressContainer.parentNode.insertBefore(convertProgressText, convertProgressContainer.nextSibling);
+
+            const splitForm = document.getElementById('splitForm');
+            const splitProgressBar = document.querySelector('#split .progress-bar');
+            const splitProgressContainer = document.querySelector('#split .progress');
+            const jsonFileSelect = document.getElementById('jsonFileSelect');
+            const splitMessage = document.getElementById('splitMessage');
+            const splitDownloadLinks = document.getElementById('splitDownloadLinks');
+
+            // Função para buscar arquivos JSON disponíveis
+            async function fetchJsonFiles() {
+                try {
+                    const response = await fetch('http://127.0.0.1:5000/list_json_files');
+                    const data = await response.json();
+                    jsonFileSelect.innerHTML = ''; // Limpa opções existentes
+                    if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                            const option = document.createElement('option');
+                            option.value = file;
+                            option.textContent = file;
+                            jsonFileSelect.appendChild(option);
+                        });
+                    } else {
+                        const option = document.createElement('option');
+                        option.textContent = 'Nenhum arquivo JSON disponível';
+                        option.disabled = true;
+                        jsonFileSelect.appendChild(option);
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar arquivos JSON:', error);
+                    jsonFileSelect.innerHTML = '<option disabled>Erro ao carregar arquivos</option>';
+                }
+            }
+
+            // Função para gerar link de visualização do JSON selecionado
+            function generateJsonPreviewLink() {
+                const selectedFile = jsonFileSelect.value;
+                const previewLinkContainer = document.getElementById('jsonPreviewLinkContainer');
+                previewLinkContainer.innerHTML = ''; // Limpa link anterior
+
+                if (selectedFile && selectedFile !== 'Nenhum arquivo JSON disponível' && selectedFile !== 'Erro ao carregar arquivos') {
+                    const a = document.createElement('a');
+                    a.href = `http://127.0.0.1:5000/download/${selectedFile}`;
+                    a.textContent = `Visualizar ${selectedFile}`;
+                    a.className = 'btn btn-outline-secondary btn-sm';
+                    a.target = '_blank'; // Abrir em nova aba
+                    previewLinkContainer.appendChild(a);
+                }
+            }
+
+            // Chama a função ao carregar a página e ao mudar para a aba de divisão
+            fetchJsonFiles().then(generateJsonPreviewLink); // Gera o link após carregar os arquivos
+            document.getElementById('split-tab').addEventListener('shown.bs.tab', () => {
+                fetchJsonFiles().then(generateJsonPreviewLink);
+            });
+            jsonFileSelect.addEventListener('change', generateJsonPreviewLink);
+
+            const generateSplitApiButton = document.getElementById('generateSplitApiButton');
+            if (generateSplitApiButton) {
+                generateSplitApiButton.addEventListener('click', function() {
+                    const selectedFile = jsonFileSelect.value;
+                    if (selectedFile && selectedFile !== 'Nenhum arquivo JSON disponível' && selectedFile !== 'Erro ao carregar arquivos') {
+                        window.open(`http://127.0.0.1:5000/download/${selectedFile}`, '_blank');
+                    } else {
+                        alert('Por favor, selecione um arquivo JSON válido primeiro.');
+                    }
+                });
+            }
+
+            uploadForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                uploadMessage.textContent = '';
+                downloadLink.innerHTML = '';
+                convertProgressBar.style.width = '0%';
+                convertProgressBar.setAttribute('aria-valuenow', 0);
+                convertProgressText.textContent = '';
+                convertProgressContainer.classList.remove('d-none');
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                try {
+                    const response = await fetch('http://127.0.0.1:5000/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (response.status === 202 && result.task_id) {
+                        uploadMessage.textContent = result.message;
+                        uploadMessage.className = 'mt-2 text-info';
+                        convertProgressText.textContent = 'Iniciando processamento...';
+                        // Inicia o polling para verificar o status da tarefa
+                        pollTaskStatus(result.status_url, convertProgressBar, convertProgressText, uploadMessage, downloadLink);
+                    } else if (response.ok) { // Fallback para caso o Celery não esteja configurado/funcionando
+                        uploadMessage.textContent = result.message;
+                        uploadMessage.className = 'mt-2 text-success';
+                        if (result.filename) {
+                            const a = document.createElement('a');
+                            a.href = `/download/${result.filename}`;
+                            a.textContent = `Download ${result.filename}`;
+                            a.className = 'btn btn-success mt-2';
+                            downloadLink.appendChild(a);
+                            fetchJsonFiles();
+                        }
+                        convertProgressBar.style.width = '100%';
+                        convertProgressBar.setAttribute('aria-valuenow', 100);
+                        convertProgressText.textContent = 'Concluído!';
+                        setTimeout(() => { if (convertProgressContainer) convertProgressContainer.classList.add('d-none'); convertProgressText.textContent = ''; }, 3000);
+                    } else {
+                        uploadMessage.textContent = result.error || 'Erro desconhecido no upload.';
+                        uploadMessage.className = 'mt-2 text-danger';
+                        if (convertProgressContainer) convertProgressContainer.classList.add('d-none');
+                        convertProgressText.textContent = '';
+                    }
+                } catch (error) {
+                    uploadMessage.textContent = `Erro na requisição: ${error.message}`;
+                    uploadMessage.className = 'mt-2 text-danger';
+                    if (convertProgressContainer) convertProgressContainer.classList.add('d-none');
+                    convertProgressText.textContent = '';
+                }
+            });
+
+            async function pollTaskStatus(statusUrl, progressBarElement, progressTextElement, messageElement, linkElement) {
+                try {
+                    const response = await fetch(statusUrl);
+                    const data = await response.json();
+
+                    progressBarElement.style.width = data.current + '%';
+                    progressBarElement.setAttribute('aria-valuenow', data.current);
+                    progressTextElement.textContent = data.status;
+
+                    if (data.state === 'PENDING' || data.state === 'PROGRESS') {
+                        messageElement.textContent = 'Processando... (' + data.status + ')';
+                        messageElement.className = 'mt-2 text-info';
+                        setTimeout(() => pollTaskStatus(statusUrl, progressBarElement, progressTextElement, messageElement, linkElement), 2000); // Verifica a cada 2 segundos
+                    } else if (data.state === 'SUCCESS') {
+                        messageElement.textContent = 'Arquivo convertido com sucesso!';
+                        messageElement.className = 'mt-2 text-success';
+                        progressTextElement.textContent = 'Concluído!';
+                        if (data.result) {
+                            const a = document.createElement('a');
+                            a.href = `/download/${data.result}`;
+                            a.textContent = `Download ${data.result}`;
+                            a.className = 'btn btn-success mt-2';
+                            linkElement.innerHTML = ''; // Limpa links anteriores
+                            linkElement.appendChild(a);
+                            fetchJsonFiles(); // Atualiza a lista de arquivos JSON
+                        }
+                        setTimeout(() => { 
+                            if (progressBarElement.parentElement) progressBarElement.parentElement.classList.add('d-none'); 
+                            progressTextElement.textContent = '';
+                        }, 3000);
+                    } else if (data.state === 'FAILURE') {
+                        messageElement.textContent = `Falha no processamento: ${data.error || data.status}`;
+                        messageElement.className = 'mt-2 text-danger';
+                        progressTextElement.textContent = 'Falha!';
+                        setTimeout(() => { 
+                            if (progressBarElement.parentElement) progressBarElement.parentElement.classList.add('d-none'); 
+                            progressTextElement.textContent = '';
+                        }, 5000);
+                    }
+                } catch (error) {
+                    messageElement.textContent = 'Erro ao verificar status da tarefa: ' + error.message;
+                    messageElement.className = 'mt-2 text-danger';
+                    progressTextElement.textContent = 'Erro no polling!';
+                    setTimeout(() => { 
+                        if (progressBarElement.parentElement) progressBarElement.parentElement.classList.add('d-none'); 
+                        progressTextElement.textContent = '';
+                    }, 5000);
+                }
+            }
+
+            splitForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                splitMessage.textContent = '';
+                splitDownloadLinks.innerHTML = '';
+                splitProgressBar.style.width = '0%';
+                splitProgressBar.setAttribute('aria-valuenow', 0);
+                splitProgressContainer.classList.remove('d-none');
+
+                const formData = new FormData(splitForm);
+                
+                // Log dos dados do formulário antes de enviar
+                console.log('Dados do formulário de divisão:', Object.fromEntries(formData.entries()));
+
+                try {
+                    // Simula progresso de divisão
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        if (progress < 90) {
+                            progress += 10;
+                            splitProgressBar.style.width = progress + '%';
+                            splitProgressBar.setAttribute('aria-valuenow', progress);
+                        } else {
+                            clearInterval(interval);
+                        }
+                    }, 200);
+
+                    const response = await fetch('http://127.0.0.1:5000/split', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    clearInterval(interval);
+                    splitProgressBar.style.width = '100%';
+                    splitProgressBar.setAttribute('aria-valuenow', 100);
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        splitMessage.textContent = result.message;
+                        splitMessage.className = 'mt-2 text-success';
+                        if (result.split_files && result.split_files.length > 0) {
+                            result.split_files.forEach(filename => {
+                                const a = document.createElement('a');
+                                a.href = `/download/${filename}`;
+                                a.textContent = `Download ${filename}`;
+                                a.className = 'btn btn-info btn-sm me-2 mt-2';
+                                splitDownloadLinks.appendChild(a);
+                            });
+                        }
+                    } else {
+                        splitMessage.textContent = result.error;
+                        splitMessage.className = 'mt-2 text-danger';
+                    }
+                } catch (error) {
+                    splitMessage.textContent = `Erro na requisição: ${error.message}`;
+                    splitMessage.className = 'mt-2 text-danger';
+                } finally {
+                    if (splitProgressContainer) splitProgressContainer.classList.add('d-none');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
